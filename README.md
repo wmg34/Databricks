@@ -13,13 +13,6 @@
 ├── data/
 │   ├── bronze_schema.sql
 │   └── sample_data.sql
-│
-├── docs/
-│   ├── INTERVIEW_GUIDE.md
-│   ├── ARCHITECTURE_DIAGRAM.md
+
 │   └── RESULTS_SUMMARY.md
 │
-└── images/
-    ├── pipeline_architecture.png
-    ├── data_flow.png
-    └── results_screenshot.png
