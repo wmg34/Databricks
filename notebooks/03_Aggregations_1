@@ -1,0 +1,148 @@
+# ============================================================
+# AGGREGATIONS - CREATE CUSTOMER METRICS
+# Purpose: Join customers with orders and calculate metrics
+# ============================================================
+
+from pyspark.sql.functions import (
+    col, count, sum, avg, max, round, coalesce, desc, lit
+)
+from datetime import datetime
+
+print("=" * 70)
+print("CREATING CUSTOMER METRICS - SILVER LAYER")
+print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("=" * 70)
+
+# ============================================================
+# STEP 1: READ CLEANED CUSTOMERS & RAW ORDERS
+# ============================================================
+print("\n📥 STEP 1: Reading data...")
+
+df_customers = spark.read.table("my_project.silver.customers_clean")
+df_orders = spark.read.table("my_project.bronze.orders")
+
+print(f"✅ Cleaned customers: {df_customers.count()}")
+print(f"✅ Raw orders: {df_orders.count()}")
+
+# ============================================================
+# STEP 2: FILTER INVALID ORDERS
+# ============================================================
+print("\n🔧 STEP 2: Filtering invalid orders...")
+
+df_orders_clean = df_orders \
+    .filter(col("order_id").isNotNull()) \
+    .filter(col("customer_id").isNotNull()) \
+    .filter(col("order_amount") > 0)
+
+invalid_orders = df_orders.count() - df_orders_clean.count()
+print(f"✅ Removed {invalid_orders} invalid orders")
+print(f"✅ Valid orders: {df_orders_clean.count()}")
+
+# ============================================================
+# STEP 3: JOIN CUSTOMERS TO ORDERS
+# ============================================================
+print("\n🔗 STEP 3: Joining customers with orders...")
+
+df_joined = df_customers.join(
+    df_orders_clean,
+    on="customer_id",
+    how="left"  # Keep all customers, even if no orders
+)
+
+print(f"✅ Joined {df_joined.count()} customer-order records")
+
+# ============================================================
+# STEP 4: AGGREGATE BY CUSTOMER
+# ============================================================
+print("\n📊 STEP 4: Aggregating metrics by customer...")
+
+df_metrics = df_joined.groupBy(
+    "customer_id",
+    "customer_name",
+    "email"
+).agg(
+    count("order_id").alias("total_orders"),
+    coalesce(sum("order_amount"), lit(0)).alias("total_spent"),
+    round(avg("order_amount"), 2).alias("avg_order_value"),
+    max("order_date").alias("last_order_date")
+).orderBy(col("total_spent").desc())  # Sort by highest spenders
+
+print(f"✅ Created metrics for {df_metrics.count()} customers")
+
+# ============================================================
+# STEP 5: DISPLAY METRICS
+# ============================================================
+print("\n📋 STEP 5: Customer metrics (sorted by spending)...")
+df_metrics.show(truncate=False)
+
+# ============================================================
+# STEP 6: SAVE METRICS
+# ============================================================
+print("\n💾 STEP 6: Saving customer metrics...")
+
+df_metrics.write \
+    .mode("overwrite") \
+    .option("mergeSchema", "true") \
+    .saveAsTable("my_project.silver.customer_metrics")
+
+print("✅ Saved to: my_project.silver.customer_metrics")
+
+# ============================================================
+# STEP 7: SHOW STATISTICS
+# ============================================================
+print("\n📈 STEP 7: Statistics...")
+
+total_revenue = df_metrics.select(sum("total_spent")).collect()[0][0]
+avg_customer_value = df_metrics.select(avg("total_spent")).collect()[0][0]
+customers_with_orders = df_metrics.filter(col("total_orders") > 0).count()
+
+print(f"Total revenue: ${total_revenue:.2f}")
+print(f"Average customer value: ${avg_customer_value:.2f}")
+print(f"Customers with orders: {customers_with_orders}")
+
+======================================================================
+CREATING CUSTOMER METRICS - SILVER LAYER
+Started: 2026-06-15 01:37:39
+======================================================================
+
+📥 STEP 1: Reading data...
+✅ Cleaned customers: 5
+✅ Raw orders: 6
+
+🔧 STEP 2: Filtering invalid orders...
+✅ Removed 0 invalid orders
+✅ Valid orders: 6
+
+🔗 STEP 3: Joining customers with orders...
+✅ Joined 7 customer-order records
+
+📊 STEP 4: Aggregating metrics by customer...
+✅ Created metrics for 5 customers
+
+📋 STEP 5: Customer metrics (sorted by spending)...
++-----------+-------------+-----------------+------------+-----------+---------------+---------------+
+|customer_id|customer_name|email            |total_orders|total_spent|avg_order_value|last_order_date|
++-----------+-------------+-----------------+------------+-----------+---------------+---------------+
+|1          |ALICE JOHNSON|alice@example.com|3           |255.00     |85.00          |2024-02-15     |
+|4          |CAROL WHITE  |carol@example.com|1           |200.00     |200.00         |2024-02-10     |
+|2          |BOB SMITH    |bob@example.com  |1           |75.50      |75.50          |2024-01-25     |
+|3          |ALICE JOHNSON|alice@example.com|1           |45.25      |45.25          |2024-02-05     |
+|5          |DAVID BROWN  |david@example.com|0           |0.00       |NULL           |NULL           |
++-----------+-------------+-----------------+------------+-----------+---------------+---------------+
+
+
+💾 STEP 6: Saving customer metrics...
+✅ Saved to: my_project.silver.customer_metrics
+
+📈 STEP 7: Statistics...
+Total revenue: $575.75
+Average customer value: $115.15
+Customers with orders: 4
+
+======================================================================
+✅ AGGREGATION COMPLETE
+======================================================================
+
+print("\n" + "=" * 70)
+print("✅ AGGREGATION COMPLETE")
+print("=" * 70)
