@@ -1,0 +1,16 @@
+-- ============================================================
+-- FINAL VERIFICATION - VIEW ALL THREE LAYERS
+-- ============================================================
+
+-- Check row counts at each layer
+SELECT 'Bronze - Customers' as layer, COUNT(*) as record_count 
+FROM my_project.bronze.customers
+UNION ALL
+SELECT 'Silver - Cleaned Customers', COUNT(*) 
+FROM my_project.silver.customers_clean
+UNION ALL
+SELECT 'Silver - Metrics', COUNT(*) 
+FROM my_project.silver.customer_metrics
+UNION ALL
+SELECT 'Gold - Segments', COUNT(*) 
+FROM my_project.gold.customer_segments;
