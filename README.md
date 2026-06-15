@@ -1,4 +1,3 @@
-# README.md
  databricks-sql-python-pyspark-project/
 ├── README.md                          ← Most important!
 ├── ARCHITECTURE.md                    ← Design details
