@@ -1,1 +1,32 @@
 
+
+# 🚀 Data Engineering Project: SQL + Python + PySpark
+
+### 3-Layer Medallion Architecture Data Pipeline
+
+![Python](https://img.shields.io/badge/Python-3.9+-blue?style=flat-square&logo=python)
+![PySpark](https://img.shields.io/badge/PySpark-3.0+-orange?style=flat-square&logo=apache-spark)
+![SQL](https://img.shields.io/badge/SQL-Standard-green?style=flat-square&logo=database)
+![Databricks](https://img.shields.io/badge/Databricks-Community-blue?style=flat-square&logo=databricks)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=flat-square)
+
+</div>
+
+---
+
+## 📖 Overview
+
+A complete, production-ready data engineering pipeline demonstrating:
+- ✅ Medallion Architecture (3-layer pattern)
+- ✅ SQL, Python, and PySpark proficiency
+- ✅ Data quality validation
+- ✅ ETL transformation
+- ✅ Business metric creation
+
+**Status:** ✅ Complete and working
+
+---
+
+## 🎯 What This Project Does
+
+**Transforms raw, messy data into business-ready insights**
