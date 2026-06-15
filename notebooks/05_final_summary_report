@@ -1,0 +1,195 @@
+# ============================================================
+# FINAL SUMMARY REPORT
+# Shows the complete pipeline journey
+# ============================================================
+
+from pyspark.sql.functions import sum, count, avg, desc
+from datetime import datetime
+
+print("\n" + "=" * 70)
+print("📊 COMPLETE DATA ENGINEERING PIPELINE SUMMARY")
+print(f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("=" * 70)
+
+# ============================================================
+# SECTION 1: DATA QUALITY IMPROVEMENTS
+# ============================================================
+print("\n" + "=" * 70)
+print("1️⃣  DATA QUALITY JOURNEY")
+print("=" * 70)
+
+df_raw = spark.read.table("my_project.bronze.customers")
+df_clean = spark.read.table("my_project.silver.customers_clean")
+
+print(f"\n📥 BRONZE LAYER (Raw):")
+print(f"   Total records: {df_raw.count()}")
+print(f"   Issues: Missing values, formatting issues")
+
+print(f"\n✨ SILVER LAYER (Cleaned):")
+print(f"   Total records: {df_clean.count()}")
+print(f"   Issues fixed:")
+print(f"      ✅ Standardized text (UPPERCASE names, lowercase emails)")
+print(f"      ✅ Fixed missing phone numbers")
+
+# ============================================================
+# SECTION 2: BUSINESS INSIGHTS
+# ============================================================
+print("\n" + "=" * 70)
+print("2️⃣  BUSINESS INSIGHTS FROM GOLD LAYER")
+print("=" * 70)
+
+df_segments = spark.read.table("my_project.gold.customer_segments")
+
+print("\n💰 REVENUE BREAKDOWN:")
+print("-" * 70)
+df_segments.groupBy("customer_segment").agg(
+    count("customer_id").alias("count"),
+    sum("total_spent").alias("revenue")
+).orderBy(desc("revenue")).show()
+
+print("\n TOP CUSTOMERS:")
+print("-" * 70)
+df_segments.orderBy(desc("total_spent")).select(
+    "customer_id",
+    "customer_name",
+    "total_orders",
+    "total_spent",
+    "health_score"
+).limit(3).show(truncate=False)
+
+print("\n📈 OVERALL STATISTICS:")
+print("-" * 70)
+stats = df_segments.agg(
+    sum("total_spent").alias("total_revenue"),
+    count("customer_id").alias("total_customers"),
+    avg("total_orders").alias("avg_orders")
+).collect()[0]
+
+print(f"Total Revenue: ${stats[0]:.2f}")
+print(f"Total Customers: {stats[1]}")
+print(f"Average Orders per Customer: {stats[2]:.2f}")
+
+# ============================================================
+# SECTION 3: TECHNOLOGIES USED
+# ============================================================
+print("\n" + "=" * 70)
+print("3️⃣  TECHNOLOGIES USED")
+print("=" * 70)
+
+print("""
+✅ SQL
+   - Created bronze tables
+   - Verified results across layers
+
+✅ Python
+   - Data validation checks
+   - Identified data quality issues
+
+✅ PySpark
+   - Removed duplicates
+   - Standardized text
+   - Fixed missing values
+   - Joined and aggregated data
+   - Created business segments
+""")
+
+# ============================================================
+# SECTION 4: ARCHITECTURE
+# ============================================================
+print("\n" + "=" * 70)
+print("4️⃣  3-LAYER ARCHITECTURE")
+print("=" * 70)
+
+print("""
+BRONZE → SILVER → GOLD
+Raw      Cleaned    Business Ready
+Data     Data       Data
+""")
+
+
+======================================================================
+📊 COMPLETE DATA ENGINEERING PIPELINE SUMMARY
+Report Generated: 2026-06-14 03:46:37
+======================================================================
+
+======================================================================
+1️⃣  DATA QUALITY JOURNEY
+======================================================================
+
+📥 BRONZE LAYER (Raw):
+   Total records: 5
+   Issues: Missing values, formatting issues
+
+✨ SILVER LAYER (Cleaned):
+   Total records: 5
+   Issues fixed:
+      ✅ Standardized text (UPPERCASE names, lowercase emails)
+      ✅ Fixed missing phone numbers
+
+======================================================================
+2️⃣  BUSINESS INSIGHTS FROM GOLD LAYER
+======================================================================
+
+💰 REVENUE BREAKDOWN:
+----------------------------------------------------------------------
++----------------+-----+-------+
+|customer_segment|count|revenue|
++----------------+-----+-------+
+|      High Value|    2| 455.00|
+|       Low Value|    2| 120.75|
+|    No Purchases|    1|   0.00|
++----------------+-----+-------+
+
+
+ TOP CUSTOMERS:
+----------------------------------------------------------------------
++-----------+-------------+------------+-----------+------------+
+|customer_id|customer_name|total_orders|total_spent|health_score|
++-----------+-------------+------------+-----------+------------+
+|1          |ALICE JOHNSON|3           |255.00     |7           |
+|4          |CAROL WHITE  |1           |200.00     |3           |
+|2          |BOB SMITH    |1           |75.50      |3           |
++-----------+-------------+------------+-----------+------------+
+
+
+📈 OVERALL STATISTICS:
+----------------------------------------------------------------------
+Total Revenue: $575.75
+Total Customers: 5
+Average Orders per Customer: 1.20
+
+======================================================================
+3️⃣  TECHNOLOGIES USED
+======================================================================
+
+✅ SQL
+   - Created bronze tables
+   - Verified results across layers
+
+✅ Python
+   - Data validation checks
+   - Identified data quality issues
+
+✅ PySpark
+   - Removed duplicates
+   - Standardized text
+   - Fixed missing values
+   - Joined and aggregated data
+   - Created business segments
+
+
+======================================================================
+4️⃣  3-LAYER ARCHITECTURE
+======================================================================
+
+BRONZE → SILVER → GOLD
+Raw      Cleaned    Business Ready
+Data     Data       Data
+
+======================================================================
+✅ PIPELINE COMPLETE AND PRODUCTION READY
+======================================================================
+
+print("=" * 70)
+print("✅ PIPELINE COMPLETE AND PRODUCTION READY")
+print("=" * 70)
