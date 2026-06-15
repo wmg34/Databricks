@@ -1,0 +1,128 @@
+# ============================================================
+# CUSTOMER SEGMENTATION - GOLD LAYER
+# Purpose: Create business-ready customer categories
+# ============================================================
+
+from pyspark.sql.functions import when
+
+print("\n" + "=" * 70)
+print("CREATING CUSTOMER SEGMENTS - GOLD LAYER")
+print("=" * 70)
+
+# Read the metrics we just created
+df_metrics = spark.read.table("my_project.silver.customer_metrics")
+
+# ============================================================
+# CREATE SEGMENTS BASED ON SPENDING
+# ============================================================
+print("\n  STEP 1: Creating customer segments...")
+
+df_segments = df_metrics.withColumn(
+    "customer_segment",
+    when(col("total_orders") == 0, "No Purchases")
+    .when(col("total_spent") < 100, "Low Value")
+    .when(col("total_spent") < 200, "Medium Value")
+    .otherwise("High Value")
+)
+
+print("✅ Segment criteria:")
+print("   - No Purchases: 0 orders")
+print("   - Low Value: $1-$99")
+print("   - Medium Value: $100-$199")
+print("   - High Value: $200+")
+
+# ============================================================
+# ADD CUSTOMER HEALTH SCORE
+# ============================================================
+print("\n💪 STEP 2: Calculating customer health score...")
+
+df_segments = df_segments.withColumn(
+    "health_score",
+    when(col("total_orders") == 0, 1)  # Not a customer yet
+    .when(col("total_orders") < 2, 3)  # Tried once or twice
+    .when(col("total_orders") < 4, 7)  # Regular customer
+    .otherwise(10)  # VIP customer
+)
+
+print("✅ Health score: 1-10 (higher = better)")
+
+# ============================================================
+# DISPLAY SEGMENTS
+# ============================================================
+print("\n📋 STEP 3: Customer segments...")
+df_segments.select(
+    "customer_id",
+    "customer_name",
+    "total_orders",
+    "total_spent",
+    "customer_segment",
+    "health_score"
+).show(truncate=False)
+
+# ============================================================
+# SEGMENT SUMMARY
+# ============================================================
+print("\n📊 STEP 4: Segment breakdown...")
+df_segments.groupBy("customer_segment").count() \
+    .orderBy(col("count").desc()) \
+    .show()
+
+# ============================================================
+# SAVE TO GOLD LAYER
+# ============================================================
+print("\n💾 STEP 5: Saving to Gold layer...")
+
+df_segments.write \
+    .mode("overwrite") \
+    .option("mergeSchema", "true") \
+    .saveAsTable("my_project.gold.customer_segments")
+
+print("✅ Saved to: my_project.gold.customer_segments")
+
+
+======================================================================
+CREATING CUSTOMER SEGMENTS - GOLD LAYER
+======================================================================
+
+  STEP 1: Creating customer segments...
+✅ Segment criteria:
+   - No Purchases: 0 orders
+   - Low Value: $1-$99
+   - Medium Value: $100-$199
+   - High Value: $200+
+
+💪 STEP 2: Calculating customer health score...
+✅ Health score: 1-10 (higher = better)
+
+📋 STEP 3: Customer segments...
++-----------+-------------+------------+-----------+----------------+------------+
+|customer_id|customer_name|total_orders|total_spent|customer_segment|health_score|
++-----------+-------------+------------+-----------+----------------+------------+
+|1          |ALICE JOHNSON|3           |255.00     |High Value      |7           |
+|4          |CAROL WHITE  |1           |200.00     |High Value      |3           |
+|2          |BOB SMITH    |1           |75.50      |Low Value       |3           |
+|3          |ALICE JOHNSON|1           |45.25      |Low Value       |3           |
+|5          |DAVID BROWN  |0           |0.00       |No Purchases    |1           |
++-----------+-------------+------------+-----------+----------------+------------+
+
+
+📊 STEP 4: Segment breakdown...
++----------------+-----+
+|customer_segment|count|
++----------------+-----+
+|      High Value|    2|
+|       Low Value|    2|
+|    No Purchases|    1|
++----------------+-----+
+
+
+💾 STEP 5: Saving to Gold layer...
+✅ Saved to: my_project.gold.customer_segments
+
+======================================================================
+✅ SEGMENTATION COMPLETE - READY FOR BUSINESS ANALYSIS
+======================================================================
+
+print("\n" + "=" * 70)
+print("✅ SEGMENTATION COMPLETE - READY FOR BUSINESS ANALYSIS")
+print("=" * 70)
