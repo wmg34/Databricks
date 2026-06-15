@@ -1,0 +1,202 @@
+# ============================================================
+# DATA CLEANING NOTEBOOK - FIXED VERSION
+# Purpose: Clean and standardize data
+# ============================================================
+
+from pyspark.sql.functions import (
+    col, row_number, trim, upper, lower, 
+    when, coalesce, current_timestamp, lit
+)
+from pyspark.sql.window import Window
+from datetime import datetime
+
+print("=" * 70)
+print("DATA CLEANING - SILVER LAYER")
+print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("=" * 70)
+
+# ============================================================
+# STEP 1: READ RAW DATA
+# ============================================================
+print("\n📥 STEP 1: Reading raw data from Bronze...")
+df_customers = spark.read.table("my_project.bronze.customers")
+print(f"✅ Read {df_customers.count()} raw customer records")
+
+# Show what the raw data looks like
+print("\nRaw data (before cleaning):")
+df_customers.show(truncate=False)
+
+# ============================================================
+# STEP 2: REMOVE DUPLICATES
+# ============================================================
+print("\n🔄 STEP 2: Removing duplicates...")
+
+# Use window function to keep only latest record per customer
+window_spec = Window.partitionBy("customer_id").orderBy(col("created_date").desc())
+
+df_dedup = df_customers \
+    .withColumn("row_num", row_number().over(window_spec)) \
+    .filter(col("row_num") == 1) \
+    .drop("row_num")
+
+duplicates_removed = df_customers.count() - df_dedup.count()
+print(f"✅ Removed {duplicates_removed} duplicate records")
+print(f"✅ Remaining: {df_dedup.count()} unique customers")
+
+# ============================================================
+# STEP 3: REMOVE NULL NAMES
+# ============================================================
+print("\n❌ STEP 3: Removing records with NULL customer names...")
+
+df_cleaned = df_dedup.filter(col("customer_name").isNotNull())
+
+null_removed = df_dedup.count() - df_cleaned.count()
+print(f"✅ Removed {null_removed} records with NULL names")
+
+# ============================================================
+# STEP 4: STANDARDIZE TEXT
+# ============================================================
+print("\n📝 STEP 4: Standardizing text formatting...")
+
+df_cleaned = df_cleaned \
+    .withColumn(
+        "customer_name",
+        upper(trim(col("customer_name")))  # UPPERCASE and trim spaces
+    ) \
+    .withColumn(
+        "email",
+        lower(trim(col("email")))  # lowercase and trim spaces
+    )
+
+print("✅ Customer names: STANDARDIZED TO UPPERCASE")
+print("✅ Email addresses: STANDARDIZED TO LOWERCASE")
+
+# ============================================================
+# STEP 5: HANDLE MISSING VALUES
+# ============================================================
+print("\n🔧 STEP 5: Fixing missing values...")
+
+df_cleaned = df_cleaned \
+    .withColumn(
+        "phone",
+        coalesce(col("phone"), lit("Not Provided"))  # ← FIXED LINE (added lit)
+    )
+
+missing_phone_fixed = df_cleaned.filter(col("phone") == "Not Provided").count()
+print(f"✅ Fixed {missing_phone_fixed} missing phone numbers")
+
+# ============================================================
+# STEP 6: ADD PROCESSING METADATA
+# ============================================================
+print("\n⏰ STEP 6: Adding metadata columns...")
+
+df_cleaned = df_cleaned.withColumn(
+    "processed_date",
+    current_timestamp()  # When this data was processed
+)
+
+print("✅ Added processed_date column")
+
+# ============================================================
+# STEP 7: DISPLAY CLEANED DATA
+# ============================================================
+print("\n✨ STEP 7: Cleaned customer data...")
+df_cleaned.show(truncate=False)
+
+# ============================================================
+# STEP 8: SAVE TO SILVER LAYER
+# ============================================================
+print("\n💾 STEP 8: Saving cleaned data to Silver layer...")
+
+df_cleaned.write \
+    .mode("overwrite") \
+    .option("mergeSchema", "true") \
+    .saveAsTable("my_project.silver.customers_clean")
+
+print("✅ Saved to: my_project.silver.customers_clean")
+
+# ============================================================
+# SUMMARY
+# ============================================================
+print("\n" + "=" * 70)
+print("CLEANING SUMMARY")
+print("=" * 70)
+print(f"Raw data started with: {df_customers.count()} records")
+print(f"Duplicates removed: {duplicates_removed}")
+print(f"NULL names removed: {null_removed}")
+print(f"Final clean records: {df_cleaned.count()}")
+print("Fixes applied:")
+print("  ✅ Removed duplicates")
+print("  ✅ Removed NULL names")
+print("  ✅ Uppercase customer names")
+print("  ✅ Lowercase emails")
+print("  ✅ Fixed missing phone numbers")
+print("=" * 70)
+
+
+======================================================================
+DATA CLEANING - SILVER LAYER
+Started: 2026-06-14 03:16:01
+======================================================================
+
+📥 STEP 1: Reading raw data from Bronze...
+✅ Read 5 raw customer records
+
+Raw data (before cleaning):
++-----------+-------------+-----------------+--------+------------+
+|customer_id|customer_name|email            |phone   |created_date|
++-----------+-------------+-----------------+--------+------------+
+|1          |Alice Johnson|alice@example.com|555-0101|2024-01-15  |
+|2          |Bob Smith    |bob@example.com  |555-0102|2024-01-20  |
+|3          |Alice Johnson|alice@example.com|555-0101|2024-01-25  |
+|4          |Carol White  |carol@example.com|555-0103|2024-02-01  |
+|5          |David Brown  |david@example.com|NULL    |2024-02-05  |
++-----------+-------------+-----------------+--------+------------+
+
+
+🔄 STEP 2: Removing duplicates...
+✅ Removed 0 duplicate records
+✅ Remaining: 5 unique customers
+
+❌ STEP 3: Removing records with NULL customer names...
+✅ Removed 0 records with NULL names
+
+📝 STEP 4: Standardizing text formatting...
+✅ Customer names: STANDARDIZED TO UPPERCASE
+✅ Email addresses: STANDARDIZED TO LOWERCASE
+
+🔧 STEP 5: Fixing missing values...
+✅ Fixed 1 missing phone numbers
+
+⏰ STEP 6: Adding metadata columns...
+✅ Added processed_date column
+
+✨ STEP 7: Cleaned customer data...
++-----------+-------------+-----------------+------------+------------+-------------------------+
+|customer_id|customer_name|email            |phone       |created_date|processed_date           |
++-----------+-------------+-----------------+------------+------------+-------------------------+
+|1          |ALICE JOHNSON|alice@example.com|555-0101    |2024-01-15  |2026-06-14 03:16:51.07172|
+|2          |BOB SMITH    |bob@example.com  |555-0102    |2024-01-20  |2026-06-14 03:16:51.07172|
+|3          |ALICE JOHNSON|alice@example.com|555-0101    |2024-01-25  |2026-06-14 03:16:51.07172|
+|4          |CAROL WHITE  |carol@example.com|555-0103    |2024-02-01  |2026-06-14 03:16:51.07172|
+|5          |DAVID BROWN  |david@example.com|Not Provided|2024-02-05  |2026-06-14 03:16:51.07172|
++-----------+-------------+-----------------+------------+------------+-------------------------+
+
+
+💾 STEP 8: Saving cleaned data to Silver layer...
+✅ Saved to: my_project.silver.customers_clean
+
+======================================================================
+CLEANING SUMMARY
+======================================================================
+Raw data started with: 5 records
+Duplicates removed: 0
+NULL names removed: 0
+Final clean records: 5
+Fixes applied:
+  ✅ Removed duplicates
+  ✅ Removed NULL names
+  ✅ Uppercase customer names
+  ✅ Lowercase emails
+  ✅ Fixed missing phone numbers
+======================================================================
